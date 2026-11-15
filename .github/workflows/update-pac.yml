@@ -1,0 +1,50 @@
+name: Update Multi-Proxy PAC
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Download and decode GFWList
+        run: |
+          curl -L -o gfwlist_raw.txt "https://gitlab.com/gfwlist/gfwlist/raw/master/gfwlist.txt"
+          if head -c 200 gfwlist_raw.txt | grep -q '^\[AutoProxy'; then
+            cp gfwlist_raw.txt gfwlist_decoded.txt
+          else
+            base64 -d gfwlist_raw.txt > gfwlist_decoded.txt 2>/dev/null || cp gfwlist_raw.txt gfwlist_decoded.txt
+          fi
+
+      - name: Generate PAC
+        run: |
+          python generate_pac.py \
+            --direct rules/direct.txt \
+            --hk rules/hongkong.txt \
+            --vultr rules/vultr.txt \
+            --gfw gfwlist_decoded.txt \
+            --hk-proxy "PROXY 206.237.26.126:20100" \
+            --vultr-proxy "PROXY 127.0.0.1:20099" \
+            --out final.pac
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add final.pac
+          git diff --staged --quiet || {
+            git commit -m "Update PAC $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push
+          }
