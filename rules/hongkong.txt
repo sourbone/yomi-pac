@@ -16,3 +16,6 @@
 ||cloudflareinsights.com
 ||hunyuanglobal.com
 ||civitai.com
+*.*-*-*.site
+*.*-*-*.store
+*.*-*-*.space
